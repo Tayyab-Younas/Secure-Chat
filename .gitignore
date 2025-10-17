@@ -1,0 +1,19 @@
+<<<<<<< HEAD
+node_modules/
+.env
+=======
+*.tar
+*.tar.*
+*.jar
+*.exe
+*.msi
+*.deb
+*.zip
+*.tgz
+*.log
+*.log.*
+*.sig
+
+pkg/
+src/
+>>>>>>> d3dfe7a170367a621df168c65870e3a367b1550c
