@@ -106,4 +106,18 @@ const loginUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-export { SignUp, loginUser };
+
+// -------------------- Logout Controller --------------------
+const logout = async (req, res) => {
+  try {
+    // Since JWT is stateless, instruct client to remove token
+    res.status(200).json({
+      success: true,
+      message: "✅ Logout successful. Please remove token from client.",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export { SignUp, loginUser, logout };

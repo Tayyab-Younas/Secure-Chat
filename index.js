@@ -8,7 +8,7 @@ import AuthRouters from "./routers/AuthRouters.js";
 import chatRouters from "./routers/ChatRouters.js";
 import messageRouters from "./routers/MessageRoutes.js";
 import KeyRoutes from "./routers/KeyRoutes.js";
-import { validateLogin, verifyToken } from "./middlewares/authMiddleware.js";
+import { verifyToken } from "./middlewares/authMiddleware.js";
 
 const app = express();
 
@@ -25,7 +25,7 @@ app.use("/", AuthRouters);
 // ✅ Protected Routes
 app.use("/chat", verifyToken, chatRouters);
 app.use("/message", verifyToken, messageRouters);
-app.use("/key", validateLogin, KeyRoutes);
+app.use("/key", KeyRoutes);
 
 // ✅ Socket.io Setup
 const server = http.createServer(app);

@@ -1,5 +1,5 @@
 import express from "express";
-import { SignUp, loginUser } from "../controllers/AuthController.js";
+import { SignUp, loginUser, logout } from "../controllers/AuthController.js";
 import upload from "../middlewares/UploadMiddleware.js";
 
 const router = express.Router();
@@ -9,5 +9,7 @@ router.post("/signup", upload.single("profilePhoto"), SignUp);
 
 // Login
 router.post("/login", loginUser);
+
+router.post("/login", logout);
 
 export default router;

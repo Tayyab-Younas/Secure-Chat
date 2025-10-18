@@ -1,51 +1,38 @@
 import User from "../models/UserModel.js";
+import { generateKeyPair } from "../utils/E2EE.js";
 
-// Rotate user's public key
 export const rotateKey = async (req, res) => {
   try {
-    const { newPublicKey } = req.body;
-
-    // ✅ Validate new public key
-    if (
-      !newPublicKey ||
-      !newPublicKey.startsWith("-----BEGIN PUBLIC KEY-----")
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or missing public key" });
-    }
-
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Save old key for backward decryption
+    // Generate new RSA key pair
+    const { publicKey: newPublicKey, privateKey: newPrivateKey } = generateKeyPair();
+
+    // Save current public key to old keys array for backward compatibility
     if (user.PublicKey) {
       user.oldPublicKeys.push(user.PublicKey);
     }
 
-    // Update public key and increment version
+    // Update with new public key
     user.PublicKey = newPublicKey;
-    user.keyVersion = (user.keyVersion || 1) + 1;
 
     await user.save();
 
+    // Return new private key to client (store securely on client-side)
     res.status(200).json({
       success: true,
-      message: "🔑 Public key rotated successfully",
+      message: "🔑 Key rotated successfully",
       data: {
         userId: user._id,
-        currentKey: user.PublicKey,
-        keyVersion: user.keyVersion,
+        currentPublicKey: user.PublicKey,
         oldKeysCount: user.oldPublicKeys.length,
+        privateKey: newPrivateKey, // Send new private key to client
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
