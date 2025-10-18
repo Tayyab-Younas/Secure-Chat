@@ -6,63 +6,55 @@ let io;
 
 const initSocket = (server) => {
   io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      credentials: true,
-    },
+    cors: { origin: "*" },
   });
 
   io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    // Join a chat room
+    // Join multiple chat rooms
     socket.on("joinChat", (chatId) => {
       socket.join(chatId);
-      console.log(`🔹 Socket ${socket.id} joined chat: ${chatId}`);
     });
 
-    // Receive encrypted message
+    // Send encrypted message
     socket.on("sendMessage", async (data) => {
       try {
-        if (!data.chatId || !data.senderId || !data.encryptedPayload) {
-          return socket.emit("error", { message: "Missing message data" });
+        const { chatId, senderId, encryptedPayload, iv } = data;
+
+        if (!chatId || !senderId || !encryptedPayload) {
+          return socket.emit("error", {
+            success: false,
+            message: "Missing message data",
+          });
         }
 
-        // Save encrypted message
+        // Save message (server cannot decrypt)
         const message = await Message.create({
-          chatId: data.chatId,
-          senderId: data.senderId,
-          encryptedPayload: data.encryptedPayload,
-          iv: data.iv,
-          authTag: data.authTag,
-          keyVersion: data.keyVersion || 1,
+          chatId,
+          senderId,
+          encryptedPayload,
+          iv,
         });
 
         // Update latestMessage in chat
-        await Chat.findByIdAndUpdate(data.chatId, {
-          latestMessage: message._id,
+        await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
+
+        // Forward encrypted message to all participants in chat
+        io.to(chatId).emit("receiveMessage", {
+          messageId: message._id,
+          chatId,
+          senderId,
+          encryptedPayload,
+          iv,
+          createdAt: message.createdAt,
         });
-
-        // Populate for client use
-        const populatedMessage = await message.populate([
-          { path: "senderId", select: "username email" },
-          { path: "chatId" },
-        ]);
-
-        // Broadcast encrypted message to all participants
-        io.to(data.chatId).emit("receiveMessage", populatedMessage);
-
-        console.log("📩 Encrypted message sent to room:", data.chatId);
       } catch (err) {
-        console.error("❌ Error saving message:", err.message);
-        socket.emit("error", { message: "Failed to send message" });
+        socket.emit("error", { success: false, message: err.message });
       }
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ User disconnected:", socket.id);
-    });
+    socket.on("disconnect", () => {});
   });
 };
 

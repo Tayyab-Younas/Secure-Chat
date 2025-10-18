@@ -5,13 +5,12 @@ export const rotateKey = async (req, res) => {
     const { newPublicKey } = req.body;
 
     if (!newPublicKey) {
-      return res.status(400).json({ message: "New public key is required" });
+      return res.status(400).json({ success: false, message: "New public key is required" });
     }
 
     const user = await User.findById(req.user._id);
-
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     // Save old key for backward decryption
@@ -34,6 +33,6 @@ export const rotateKey = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -1,12 +1,13 @@
 import Chat from "../models/ChatModel.js";
 
-// ✅ Create a new 1-to-1 chat
+// Create 1-to-1 chat
 const createChat = async (req, res) => {
   try {
     const { members } = req.body;
 
-    if (!members || members.length < 2)
-      return res.status(400).json({ message: "At least 2 members required" });
+    if (!members || members.length < 2) {
+      return res.status(400).json({ success: false, message: "At least 2 members required" });
+    }
 
     // Check if chat already exists
     const existingChat = await Chat.findOne({
@@ -14,38 +15,36 @@ const createChat = async (req, res) => {
       members: { $all: members, $size: 2 },
     });
 
-    if (existingChat) return res.status(200).json(existingChat);
+    if (existingChat) return res.status(200).json({ success: true, chat: existingChat });
 
     const newChat = await Chat.create({ members, isGroupChat: false });
-    res.status(201).json(newChat);
+    res.status(201).json({ success: true, chat: newChat });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ Fetch all user chats
+// Fetch all chats for logged-in user
 const getUserChats = async (req, res) => {
   try {
     const chats = await Chat.find({ members: req.user._id })
-      .populate("members", "username email PublicKey")
+      .populate("members", "name email PublicKey")
       .populate("latestMessage")
       .sort({ updatedAt: -1 });
 
-    res.status(200).json(chats);
+    res.status(200).json({ success: true, count: chats.length, chats });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ Create a group chat
+// Create group chat
 const createGroupChat = async (req, res) => {
   try {
     const { members, groupName } = req.body;
 
     if (!members || members.length < 2) {
-      return res
-        .status(400)
-        .json({ message: "A group must have at least 2 members" });
+      return res.status(400).json({ success: false, message: "A group must have at least 2 members" });
     }
 
     const newGroupChat = await Chat.create({
@@ -54,9 +53,9 @@ const createGroupChat = async (req, res) => {
       isGroupChat: true,
     });
 
-    res.status(201).json(newGroupChat);
+    res.status(201).json({ success: true, chat: newGroupChat });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 

@@ -21,6 +21,10 @@ const chatSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    readBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
