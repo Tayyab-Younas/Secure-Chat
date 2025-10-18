@@ -1,21 +1,28 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/UserModel.js";
+import { generateKeyPair } from "../utils/E2EE.js";
 
 const SignUp = async (req, res) => {
   try {
     const { name, email, password, phoneNumber, address, role } = req.body;
 
     if (!name || !email || !password || !phoneNumber || !address) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Email already registered" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const { publicKey: PublicKey, privateKey: PrivateKey } = generateKeyPair();
 
     const newUser = await User.create({
       name,
@@ -25,6 +32,7 @@ const SignUp = async (req, res) => {
       address,
       profilePhoto: req.file ? req.file.path : "default.jpg",
       role: role || "user",
+      PublicKey,
     });
 
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
@@ -35,6 +43,7 @@ const SignUp = async (req, res) => {
       success: true,
       message: "✅ User registered successfully",
       token,
+      PrivateKey,
       user: {
         _id: newUser._id,
         name: newUser.name,
@@ -43,6 +52,7 @@ const SignUp = async (req, res) => {
         address: newUser.address,
         role: newUser.role,
         profilePhoto: newUser.profilePhoto,
+        PrivateKey: newUser.PrivateKey,
       },
     });
   } catch (error) {
@@ -55,17 +65,23 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password required" });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {

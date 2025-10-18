@@ -1,33 +1,44 @@
 import Message from "../models/MessageModel.js";
 import Chat from "../models/ChatModel.js";
+import crypto from "crypto";
+import { Buffer } from "buffer";
+import { encryptWithPublicKey, } from "../utils/E2EE.js";
 
-// ------------------- Chat Controllers for E2EE -------------------
-
-// Send Message (server stores only encryptedPayload)
+// Send encrypted message
 const SendMessage = async (req, res) => {
   try {
-    const { chatId, senderId, encryptedPayload, iv } = req.body;
+    const { chatId, text, recipientPublicKey } = req.body;
 
-    if (!chatId || !senderId || !encryptedPayload) {
+    if (!chatId || !text || !recipientPublicKey) {
       return res.status(400).json({
         success: false,
-        message: "chatId, senderId, and encryptedPayload are required",
+        message: "chatId, text and recipientPublicKey are required",
       });
     }
 
     const chatExists = await Chat.findById(chatId);
     if (!chatExists) {
-      return res.status(404).json({
-        success: false,
-        message: "Chat not found",
-      });
+      return res.status(404).json({ success: false, message: "Chat not found" });
     }
 
+    // 1️⃣ Generate random AES key for this message
+    const aesKey = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(16);
+
+    // 2️⃣ Encrypt message with AES
+    const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+    const encryptedPayload = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]).toString("hex");
+
+    // 3️⃣ Encrypt AES key with recipient's public key
+    const encryptedKey = encryptWithPublicKey(recipientPublicKey, aesKey.toString("base64"));
+
+    // 4️⃣ Save message
     const newMessage = await Message.create({
-      senderId,
+      senderId: req.user._id,
       chatId,
       encryptedPayload,
-      iv,
+      iv: iv.toString("hex"),
+      encryptedKey,
     });
 
     chatExists.latestMessage = newMessage._id;
@@ -36,14 +47,7 @@ const SendMessage = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Message sent successfully",
-      data: {
-        messageId: newMessage._id,
-        chatId: newMessage.chatId,
-        senderId: newMessage.senderId,
-        encryptedPayload: newMessage.encryptedPayload,
-        iv: newMessage.iv,
-        createdAt: newMessage.createdAt,
-      },
+      data: newMessage,
     });
   } catch (error) {
     console.error("SendMessage error:", error);
@@ -51,25 +55,19 @@ const SendMessage = async (req, res) => {
   }
 };
 
-// Get All Messages (server returns only encrypted messages)
+// Get messages (decrypted on client with private key)
 const getMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
 
     const messages = await Message.find({ chatId })
+      .populate("senderId", "name email")
       .sort({ createdAt: 1 });
 
+    // Messages are decrypted **on the client** using the recipient's private key
     res.status(200).json({
       success: true,
-      count: messages.length,
-      messages: messages.map(msg => ({
-        messageId: msg._id,
-        chatId: msg.chatId,
-        senderId: msg.senderId,
-        encryptedPayload: msg.encryptedPayload,
-        iv: msg.iv,
-        createdAt: msg.createdAt,
-      })),
+      messages,
     });
   } catch (error) {
     console.error("getMessages error:", error);

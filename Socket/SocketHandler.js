@@ -6,55 +6,47 @@ let io;
 
 const initSocket = (server) => {
   io = new Server(server, {
-    cors: { origin: "*" },
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
   });
 
   io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    // Join multiple chat rooms
     socket.on("joinChat", (chatId) => {
       socket.join(chatId);
     });
 
-    // Send encrypted message
     socket.on("sendMessage", async (data) => {
       try {
-        const { chatId, senderId, encryptedPayload, iv } = data;
+        const { chatId, senderId, encryptedPayload, iv, encryptedKey } = data;
 
-        if (!chatId || !senderId || !encryptedPayload) {
-          return socket.emit("error", {
-            success: false,
-            message: "Missing message data",
-          });
+        if (!chatId || !senderId || !encryptedPayload || !encryptedKey) {
+          return socket.emit("error", { message: "Missing message data" });
         }
 
-        // Save message (server cannot decrypt)
+        // Save encrypted message
         const message = await Message.create({
           chatId,
           senderId,
           encryptedPayload,
           iv,
+          encryptedKey,
         });
 
-        // Update latestMessage in chat
+        // Update latestMessage
         await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
 
-        // Forward encrypted message to all participants in chat
-        io.to(chatId).emit("receiveMessage", {
-          messageId: message._id,
-          chatId,
-          senderId,
-          encryptedPayload,
-          iv,
-          createdAt: message.createdAt,
-        });
+        // Send only to participants
+        io.to(chatId).emit("receiveMessage", message);
       } catch (err) {
-        socket.emit("error", { success: false, message: err.message });
+        console.error("❌ Error saving message:", err.message);
+        socket.emit("error", { message: "Failed to send message" });
       }
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("disconnect", () => {
+      console.log("❌ User disconnected:", socket.id);
+    });
   });
 };
 
