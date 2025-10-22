@@ -10,6 +10,6 @@ router.post("/signup", upload.single("profilePhoto"), SignUp);
 // Login
 router.post("/login", loginUser);
 
-router.post("/login", logout);
+router.post("/logout", logout);
 
 export default router;

@@ -53,6 +53,7 @@ const SignUp = async (req, res) => {
         role: newUser.role,
         profilePhoto: newUser.profilePhoto,
         PrivateKey: newUser.PrivateKey,
+        PublicKey: newUser.PublicKey,
       },
     });
   } catch (error) {
