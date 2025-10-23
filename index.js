@@ -9,6 +9,7 @@ import chatRouters from "./routers/ChatRouters.js";
 import messageRouters from "./routers/MessageRoutes.js";
 import KeyRoutes from "./routers/KeyRoutes.js";
 import { verifyToken } from "./middlewares/authMiddleware.js";
+import statusRouters from "./routers/StatusRouters.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/", AuthRouters);
 app.use("/chat", verifyToken, chatRouters);
 app.use("/message", verifyToken, messageRouters);
 app.use("/key", KeyRoutes);
+app.use("/status", verifyToken, statusRouters);
 
 // ✅ Socket.io Setup
 const server = http.createServer(app);

@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import Message from "../models/MessageModel.js";
 import Chat from "../models/ChatModel.js";
+import User from "../models/UserModel.js";
 
 let io;
 
@@ -9,8 +10,18 @@ const initSocket = (server) => {
     cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     console.log("✅ User connected:", socket.id);
+
+    const userId = socket.handshake.query.userId;
+    console.log("Socket connected with userId:", userId);
+    if (userId) {
+      try {
+        await User.findByIdAndUpdate(userId, { status: "online" });
+      } catch (err) {
+        console.error("❌ Error updating user status:", err.message);
+      }
+    }
 
     socket.on("joinChat", (chatId) => {
       socket.join(chatId);
@@ -24,7 +35,6 @@ const initSocket = (server) => {
           return socket.emit("error", { message: "Missing message data" });
         }
 
-        // Save encrypted message
         const message = await Message.create({
           chatId,
           senderId,
@@ -33,10 +43,8 @@ const initSocket = (server) => {
           encryptedKey,
         });
 
-        // Update latestMessage
         await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
 
-        // Send only to participants
         io.to(chatId).emit("receiveMessage", message);
       } catch (err) {
         console.error("❌ Error saving message:", err.message);
@@ -44,8 +52,19 @@ const initSocket = (server) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log("❌ User disconnected:", socket.id);
+
+      if (userId) {
+        try {
+          await User.findByIdAndUpdate(userId, {
+            status: "offline",
+            lastSeen: new Date(),
+          });
+        } catch (err) {
+          console.error("❌ Error updating user status:", err.message);
+        }
+      }
     });
   });
 };

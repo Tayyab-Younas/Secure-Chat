@@ -2,6 +2,14 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    status: {
+      type: String,
+      enum: ["online", "offline"],
+      default: "offline",
+    },
+    lastSeen: {
+      type: Date,
+    },
     name: {
       type: String,
       required: [true, "Name is required"],

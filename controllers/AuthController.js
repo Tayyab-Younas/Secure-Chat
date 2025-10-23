@@ -84,6 +84,7 @@ const loginUser = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid email or password" });
     }
+    await User.findByIdAndUpdate(user._id, { status: "online" });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE || "7d",

@@ -4,13 +4,17 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 let socket;
 
-export const connectSocket = (token) => {
+export const connectSocket = (token, userId) => {
   socket = io(SOCKET_URL, {
     transports: ["websocket"],
     auth: { token },
+    query: { userId },
+    
   });
   return socket;
+  
 };
+
 
 export const getSocket = () => socket;
 
